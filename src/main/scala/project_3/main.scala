@@ -10,6 +10,7 @@ import org.apache.spark.storage.StorageLevel
 import org.apache.log4j.{Level, Logger}
 
 object main{
+  //this helps to suppress the logs on my local machine
   val rootLogger = Logger.getRootLogger()
   rootLogger.setLevel(Level.ERROR)
 
@@ -17,7 +18,7 @@ object main{
   Logger.getLogger("org.spark-project").setLevel(Level.WARN)
 
   def LubyMIS(g_in: Graph[Int, Int]): Graph[Int, Int] = {
-    // Initialize all vertices as undecided 0
+    //initialize all vertices as undecided 0
     var g = g_in.mapVertices((id, _) => 0)
     var remaining_vertices = g.vertices.filter(_._2 == 0).count()
     var iteration = 0
@@ -27,12 +28,12 @@ object main{
     while (remaining_vertices > 0) {
       iteration += 1
       
-      // Assign random probabilities to undecided vertices
+      //assign random probabilities to undecided vertices
       val g_with_random = g.mapVertices((id, attr) => 
         if (attr == 0) (attr, scala.util.Random.nextDouble()) else (attr, 0.0)
       )
       
-      // Find vertices with higher values than all their neighbors
+      //find vertices with higher values than all their neighbors
       val msg = g_with_random.aggregateMessages[(Int, Double)](
         triplet => {
           // Only consider undecided vertices
@@ -43,7 +44,7 @@ object main{
             } else if (triplet.srcAttr._2 < triplet.dstAttr._2) {
               triplet.sendToSrc((1, triplet.dstAttr._2))
             } else {
-              // If equal, use vertex ID as tiebreaker (lower ID wins)
+              //if equal use vertex ID as tiebreaker 
               if (triplet.srcId < triplet.dstId) {
                 triplet.sendToDst((1, triplet.srcAttr._2))
               } else {
@@ -55,18 +56,18 @@ object main{
         (a, b) => if (a._2 > b._2) a else b
       )
       
-      // Vertices to add to MIS are those that are undecided and haven't received a message
+      //vertices to add to MIS are those that are undecided and haven't received a message
       val vertices_to_add = g_with_random.vertices
         .leftJoin(msg) {
           case (vid, (status, prob), opt) =>
-            if (status == 0 && opt.isEmpty) 1 // Add to MIS
-            else status  // Keep current status
+            if (status == 0 && opt.isEmpty) 1 
+            else status  
         }
       
-      // Update the graph with new MIS vertices
+      //update the graph with new MIS vertices
       var g_updated = Graph(vertices_to_add, g.edges)
       
-      // Find neighbors of MIS vertices and mark them as excluded 
+      //find neighbors of MIS vertices and mark them as excluded 
       val excluded_neighbors = g_updated.aggregateMessages[Int](
         triplet => {
           if (triplet.srcAttr == 1 && triplet.dstAttr == 0) {
@@ -79,14 +80,14 @@ object main{
         (a, b) => -1
       )
       
-      // Update graph with excluded vertices
+
       g = g_updated.joinVertices(excluded_neighbors)((id, attr, msg) => msg).cache()
       
-      // Count remaining undecided vertices
+      //count remaining undecided vertices
       val prev_count = remaining_vertices
       remaining_vertices = g.vertices.filter(_._2 == 0).count()
       
-      // Print statistics for this iteration
+
       val decided_this_round = prev_count - remaining_vertices
       val mis_vertices = g.vertices.filter(_._2 == 1).count()
       val excluded_vertices = g.vertices.filter(_._2 == -1).count()
@@ -106,7 +107,7 @@ object main{
 
 
   def verifyMIS(g_in: Graph[Int, Int]): Boolean = {
-    // Check independence no two vertices in MIS should be connected
+    //check independence no two vertices in MIS should be connected
     val independenceCheck = g_in.aggregateMessages[Int](
       triplet => {
         if (triplet.srcAttr == 1 && triplet.dstAttr == 1) {
@@ -119,10 +120,10 @@ object main{
     
     if (independenceCheck.count() > 0) return false
     
-    // Check maximality no vertex outside MIS can be added without violating independence
+    //no vertex outside MIS can be added without violating independence
     val maximalityCheck = g_in.aggregateMessages[Int](
       triplet => {
-        // Send 1 to non-MIS vertices if they have a neighbor in MIS
+        //send 1 to non-MIS vertices if they have a neighbor in MIS
         if (triplet.srcAttr == 1 && triplet.dstAttr != 1) {
           triplet.sendToDst(1)
         }
@@ -133,7 +134,7 @@ object main{
       (a, b) => 1
     )
     
-    // Get vertices not in MIS that have no neighbors in MIS
+    //get vertices not in MIS that have no neighbors in MIS
     val canAddVertices = g_in.vertices
       .leftJoin(maximalityCheck)((vid, attr, msg) => {
         if (attr != 1 && msg.isEmpty) 1 else 0
