@@ -28,3 +28,6 @@ The following table lists different core configurations and their performance me
 | 3x4 cores     | 201              | 4          | 6943795, 31969, 351, 0    | ✅       |
 | 4x2 cores     | 532             | 5          | 6593276, 37452, 401, 5, 0     | ✅       |
 | 2x2 cores     | 710             | 5          | 6453457, 36830, 371, 2, 0     | ✅       |
+
+
+In the last three runs, the 3x4 cores configuration demonstrated the fastest performance with a running time of 201 seconds, followed by the 4x2 cores configuration at 532 seconds, and the 2x2 cores configuration was the slowest with a running time of 710 seconds. 
